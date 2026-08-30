@@ -16,7 +16,10 @@ def _iter_row_chunks(rows: int):
         yield row_offset, min(rows - row_offset, _MAX_1D_GRID_SIZE)
 
 
-def _launch_row_chunks(kernel, rows: int, *args, **kwargs) -> None:
+def _launch_row_chunks(kernel, rows: int, device_type: str, *args, **kwargs) -> None:
+    if device_type != "npu":
+        kernel[(rows,)](*args, 0, **kwargs)
+        return
     for row_offset, chunk_rows in _iter_row_chunks(rows):
         kernel[(chunk_rows,)](*args, row_offset, **kwargs)
 
@@ -181,6 +184,7 @@ def indexed_scale_shift_(
     _launch_row_chunks(
         _indexed_scale_shift_kernel,
         rows,
+        x.device.type,
         x,
         x,
         shift,
@@ -213,6 +217,7 @@ def indexed_gate(
     _launch_row_chunks(
         _indexed_gate_kernel,
         rows,
+        x.device.type,
         output,
         x,
         gate,
@@ -252,6 +257,7 @@ def rms_norm_indexed_scale_shift(
         _launch_row_chunks(
             _rms_norm_indexed_scale_shift_kernel,
             rows,
+            x.device.type,
             output,
             x,
             weight,
@@ -299,6 +305,7 @@ def indexed_gate_rms_norm_scale_shift(
         _launch_row_chunks(
             _indexed_gate_rms_norm_scale_shift_kernel,
             rows,
+            residual.device.type,
             residual_out,
             modulated_out,
             residual,

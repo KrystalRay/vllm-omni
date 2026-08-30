@@ -34,7 +34,14 @@ def test_row_chunks_respect_ascend_grid_limit(rows, expected):
 
 
 @pytest.mark.cpu
-def test_launch_row_chunks_passes_grid_and_offset():
+@pytest.mark.parametrize(
+    ("device_type", "expected_grids_and_offsets"),
+    [
+        ("npu", [(_MAX_1D_GRID_SIZE, 0), (4353, _MAX_1D_GRID_SIZE)]),
+        ("cuda", [(69888, 0)]),
+    ],
+)
+def test_launch_row_chunks_is_npu_only(device_type, expected_grids_and_offsets):
     class RecordingKernel:
         def __init__(self):
             self.calls = []
@@ -49,11 +56,11 @@ def test_launch_row_chunks_passes_grid_and_offset():
     first_arg = object()
     second_arg = object()
 
-    _launch_row_chunks(kernel, 69888, first_arg, second_arg, block_n=16)
+    _launch_row_chunks(kernel, 69888, device_type, first_arg, second_arg, block_n=16)
 
     assert kernel.calls == [
-        ((_MAX_1D_GRID_SIZE,), (first_arg, second_arg, 0), {"block_n": 16}),
-        ((4353,), (first_arg, second_arg, _MAX_1D_GRID_SIZE), {"block_n": 16}),
+        ((grid,), (first_arg, second_arg, row_offset), {"block_n": 16})
+        for grid, row_offset in expected_grids_and_offsets
     ]
 
 
